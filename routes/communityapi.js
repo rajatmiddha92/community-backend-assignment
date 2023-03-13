@@ -4,6 +4,7 @@ const authenticateToken = require('../authorization/auth');
 const Community=require('../models/community')
 const Role=require('../models/role')
 const Member=require('../models/member')
+const User=require('../models/user')
 
 //create community api
 router.post('/v1/community', authenticateToken, async (req, res) => {
@@ -32,7 +33,7 @@ router.post('/v1/community', authenticateToken, async (req, res) => {
       });
 
     console.log(req.user.name)
-    const some=await Role.create({name:req.user.name,scopes:['Community Admin']})
+    const some=await Role.create({name:req.user.name,scopes:['Community Admin','Community Member']})
   
 
       return res.status(201).json({
@@ -90,46 +91,47 @@ router.post('/v1/community', authenticateToken, async (req, res) => {
     });
   });
 
-
+//get all members
   router.get('/v1/community/:id/members', authenticateToken, async (req, res) => {
     let { id } = req.params;
     const { page = 1, limit = 10 } = req.query;
-      id=id.slice(1)
+    id=id.slice(1)
     try {
       // Find the community by id
       const community = await Community.find({name:id});
-      console.log(community)
       if (!community.length) {
         return res.status(404).json({ status: false, message: 'Community not found.' });
       }
-  
-      // Count the number of community members
-      const total = await Member.countDocuments({ community });
-  
-      // Get the community members with pagination
-      const members = await Member.find({ community })
-        .populate('user', 'id name')
-        .populate('role', 'id name')
+      
+      const userIds = community.map(data => data.owner);
+      const users = await User.find({ _id: { $in: userIds } })
         .skip((page - 1) * limit)
         .limit(Number(limit));
+      console.log(users)
   
-      // Calculate the total number of pages
-      const pages = Math.ceil(total / limit);
+      const rol = users.map(data => data.name);
+      const role = await Role.find({ name: { $in : rol }});
+      
+      const totalMembers = await User.find({ _id: { $in: userIds } }).countDocuments();
+      const totalPages = Math.ceil(totalMembers / limit);
   
       return res.status(200).json({
         status: true,
         content: {
           meta: {
-            total,
-            pages,
+            total: totalMembers,
+            pages: totalPages,
             page: Number(page),
           },
-          data: members.map((member) => ({
-            id: member.id,
-            community: member.community,
-            user: member.user,
-            role: member.role,
-            created_at: member.created_at,
+          data: users.map((data) => ({
+            id: data._id,
+            community: community[0]._id,
+            user: {
+              id: data._id,
+              name: data.name,
+            },
+            role: role.find(r => r.name === data.name)?.scopes || null,
+            created_at: data.created_at,
           })),
         },
       });
@@ -138,6 +140,56 @@ router.post('/v1/community', authenticateToken, async (req, res) => {
       return res.status(500).json({ status: false, message: err.message });
     }
   });
+  
+
+  //getMyownedCommunity
+  router.get('/v1/community/me/owner', authenticateToken, async (req, res) => {
+    const { page = 1, limit = 10 } = req.query;
+    try {
+      const communities = await Community.find({ owner: req.user.id })
+        .limit(limit * 1)
+        .skip((page - 1) * limit)
+        .sort({ created_at: -1 })
+        .exec();
+  
+      const count = await Community.countDocuments({ owner: req.user.id });
+      
+      if (!communities.length) {
+        return res.status(404).json({ status: false, message: 'No communities found.' });
+      }
+  
+      const meta = {
+        total: count,
+        pages: Math.ceil(count / limit),
+        page: parseInt(page),
+      };
+  
+      const data = communities.map((community) => ({
+        id: community._id,
+        name: community.name,
+        slug: community.slug,
+        owner: community.owner,
+        created_at: community.created_at,
+        updated_at: community.updated_at,
+      }));
+  
+      return res.status(200).json({
+        status: true,
+        content: {
+          meta,
+          data,
+        },
+      });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ status: false, message: err.message });
+    }
+  });
+
+
+
+  
+  
   
 
 module.exports= router
