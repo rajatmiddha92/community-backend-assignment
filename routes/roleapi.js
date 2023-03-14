@@ -3,17 +3,35 @@ const router= express.Router()
 const Role=require('../models/role')
 
 //api to assign role to a particular user
-router.post('/v1/role',async(req,res)=>{
-    let {name}=req.body
-    try{
-    let data=await Role.create({name})
-    res.status(201).json({status:true,content:{data}})
-    }
-    catch(err){
-        res.status(400).json({status:false,err:err.message})
-    }
+const Validator = require('validatorjs');
 
-})
+router.post('/v1/role', async (req, res) => {
+  const validationRules = {
+    name: 'required|min:2',
+  };
+  const validation = new Validator(req.body, validationRules);
+  
+  if (validation.fails()) {
+    const errors = validation.errors.all();
+    const formattedErrors = Object.keys(errors).map((key) => {
+      return {
+        param: key,
+        message: errors[key][0],
+        code: 'INVALID_INPUT',
+      };
+    });
+    return res.status(400).json({ status: false, errors: formattedErrors });
+  }
+
+  try {
+    const { name } = req.body;
+    const data = await Role.create({ name });
+    res.status(201).json({ status: true, content: { data } });
+  } catch (err) {
+    res.status(400).json({ status: false, errors: [{ message: err.message }] });
+  }
+});
+
 
 //api to get all data of all roles
 router.get('/v1/role', async (req, res) => {

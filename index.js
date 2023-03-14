@@ -4,11 +4,13 @@ const conn=require('./connection/connection')
 const RoleRoutes=require('./routes/roleapi')
 const UserRoutes=require('./routes/userapi')
 const CommunityRoutes=require('./routes/communityapi')
+const MemberRoutes=require('./routes/memberapi')
 
 app.use(express.json())
 app.use(RoleRoutes)
 app.use(UserRoutes)
 app.use(CommunityRoutes)
+app.use(MemberRoutes)
 
 
 app.listen(4000)
