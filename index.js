@@ -12,6 +12,11 @@ app.use(UserRoutes)
 app.use(CommunityRoutes)
 app.use(MemberRoutes)
 
+//testing purpose deply on remote server
+app.get('/',(req,res)=>{
+    res.send('working fine')
+})
+
 
 app.listen(4000)
 
