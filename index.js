@@ -6,6 +6,8 @@ const UserRoutes=require('./routes/userapi')
 const CommunityRoutes=require('./routes/communityapi')
 const MemberRoutes=require('./routes/memberapi')
 
+let port =process.env.PORT ||  5500;
+
 app.use(express.json())
 app.use(RoleRoutes)
 app.use(UserRoutes)
@@ -18,7 +20,7 @@ app.get('/',(req,res)=>{
 })
 
 
-app.listen(4000)
+app.listen(port)
 
 
 
